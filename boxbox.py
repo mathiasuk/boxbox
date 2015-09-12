@@ -12,6 +12,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # Copyright (C) 2014 - Mathias Andre
 
+import math
 import os
 import sys
 import traceback
@@ -22,9 +23,13 @@ import ac
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'DLLs'))
 from sim_info import info
 
+N_LAPS_DISPLAY = 1.5
+LITRES_MARGIN = 2
 
 APP_SIZE_X = 300
 APP_SIZE_Y = 200
+
+RED = (1, 0, 0, 1)
 WHITE = (1, 1, 1, 1)
 
 session = None
@@ -45,7 +50,8 @@ class UI(object):
     def _create_widget(self):
         self.widget = ac.newApp('Box box!')
         ac.setSize(self.widget, APP_SIZE_X, APP_SIZE_Y)
-        ac.addRenderCallback(self.widget, onFormRender)
+        # ac.setBackgroundOpacity(self.widget, 0)
+        ac.addRenderCallback(self.widget, form_render_callback)
 
     def _create_label(self, name, text, x, y):
         label = ac.addLabel(self.widget, name)
@@ -54,16 +60,8 @@ class UI(object):
         self.labels[name] = label
 
     def _create_labels(self):
-        self._create_label('current_lap_title', 'Current lap', 10, 30)
-        self._create_label('current_lap', '', 100, 30)
-        self._create_label('laps_title', 'Laps', 10, 50)
-        self._create_label('laps', '', 100, 50)
-        self._create_label('fuel_title', 'Fuel', 10, 70)
-        self._create_label('fuel', '', 100, 70)
-        self._create_label('consumption_title', 'Consumption', 10, 90)
-        self._create_label('consumption', '', 100, 90)
-        self._create_label('left_title', 'Laps to empty', 10, 110)
-        self._create_label('left', '', 100, 110)
+        self._create_label('message1', '', 10, 30)
+        self._create_label('message2', '', 10, 50)
 
 
 class Session(object):
@@ -74,15 +72,16 @@ class Session(object):
         self.ui = None
         self.current_lap = 0
         self.laps = 0
-        self.initial_fuel = 0
+        self.initial_fuel = -1
         self.fuel = 0
         self.consumption = 0  # in litres per lap
         self.spline_pos = 0
         self.laps_since_pit = 0
         self.laps_left = 0
+        self.litres = -1
 
     def _set_distance(self):
-        current_lap = info.graphics.completedLaps
+        current_lap = info.graphics.completedLaps + 1  # 0 indexed
         self.spline_pos = info.graphics.normalizedCarPosition
 
         if current_lap > self.current_lap:
@@ -97,35 +96,43 @@ class Session(object):
         '''
         fuel = info.physics.fuel
 
-        if fuel > self.fuel:
+        if self.initial_fuel == -1 and not info.physics.pitLimiterOn:
+			# Beginning of the session, check the initial fuel after
+			# exiting the pit or on the grid
+            self.initial_fuel = fuel
+        elif fuel > self.fuel:
             # Car was refuelled
             self.initial_fuel = fuel
             self.laps_since_pit = 0
         else:
             distance = self.laps_since_pit + self.spline_pos
-            ac.console('* %.2f %d %.2f %.2f' % (distance, self.current_lap, self.initial_fuel, self.fuel))
-            self.consumption = (self.initial_fuel - self.fuel) / distance
+            if distance != 0:
+                self.consumption = (self.initial_fuel - self.fuel) / distance
+
             if self.consumption != 0:
                 self.laps_left = self.fuel / self.consumption
+
+            # Calculate the amount of fuel needed from end of lap till
+            # end of the race
+            litres = (self.laps - self.current_lap) * self.consumption
+
+            self.litres = math.ceil(litres) + LITRES_MARGIN
+            # ac.console('* Conso:%.2f fuel:%.2f dist:%.1f litres:%d' % (self.consumption, self.fuel, distance, self.litres))
+            # ac.console('* Init fuel: %.1f laps: %d, pos: %.1f' % (self.initial_fuel, self.laps_since_pit, self.spline_pos))
 
         self.fuel = fuel
 
     def render(self):
-        label = self.ui.labels['current_lap']
+        label = self.ui.labels['message1']
         ac.setFontColor(label, *WHITE)
-        ac.setText(label, '%d' % self.current_lap)
-        label = self.ui.labels['laps']
-        ac.setFontColor(label, *WHITE)
-        ac.setText(label, '%d' % self.laps)
-        label = self.ui.labels['fuel']
-        ac.setFontColor(label, *WHITE)
-        ac.setText(label, '%.2f' % self.fuel)
-        label = self.ui.labels['consumption']
-        ac.setFontColor(label, *WHITE)
-        ac.setText(label, '%.2f' % self.consumption)
-        label = self.ui.labels['left']
-        ac.setFontColor(label, *WHITE)
-        ac.setText(label, '%.2f' % self.laps_left)
+        ac.setText(label, 'Left: %.1f, Conso: %.1f, Current lap: %d' % (self.laps_left, self.consumption, self.current_lap))
+
+        label = self.ui.labels['message2']
+        if self.laps_left < N_LAPS_DISPLAY and self.laps_since_pit > 1:
+            ac.setFontColor(label, *RED)
+            ac.setText(label, 'Box Box Box! %dl to finish race' % self.litres)
+        else:
+            ac.setText(label, '')
 
     def update_data(self):
         self.laps = info.graphics.numberOfLaps
@@ -158,7 +165,7 @@ def acUpdate(deltaT):
         ac.log(repr(traceback.format_exception(exc_type, exc_value, exc_traceback)))
 
 
-def onFormRender(deltaT):
+def form_render_callback(deltaT):
     global session  # pylint: disable=W0602
 
     try:
