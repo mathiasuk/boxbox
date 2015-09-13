@@ -17,6 +17,8 @@ import os
 import sys
 import traceback
 
+# from datetime import datetime, timedelta
+
 import ac
 # import acsys
 
@@ -27,7 +29,7 @@ N_LAPS_DISPLAY = 1.5
 LITRES_MARGIN = 2
 
 APP_SIZE_X = 300
-APP_SIZE_Y = 200
+APP_SIZE_Y = 70
 
 RED = (1, 0, 0, 1)
 WHITE = (1, 1, 1, 1)
@@ -48,10 +50,12 @@ class UI(object):
         self._create_labels()
 
     def _create_widget(self):
-        self.widget = ac.newApp('Box box!')
+        self.widget = ac.newApp('')
         ac.setSize(self.widget, APP_SIZE_X, APP_SIZE_Y)
-        # ac.setBackgroundOpacity(self.widget, 0)
-        ac.addRenderCallback(self.widget, form_render_callback)
+        # ac.addOnAppActivatedListener(self.widget, app_activated_callback)
+        ac.setIconPosition(self.widget, -10000, -10000)
+        ac.drawBorder(self.widget, 0)
+        self.hide_bg()
 
     def _create_label(self, name, text, x, y):
         label = ac.addLabel(self.widget, name)
@@ -61,7 +65,18 @@ class UI(object):
 
     def _create_labels(self):
         self._create_label('message1', '', 10, 30)
-        self._create_label('message2', '', 10, 50)
+
+    def hide_bg(self):
+        ac.setBackgroundOpacity(self.widget, 0)
+
+    def set_bg_color(self, color):
+        ac.setBackgroundColor(self.widget, *color[:-1])
+
+    def set_title(self, text):
+        ac.setTitle(self.widget, text)
+
+    def show_bg(self):
+        ac.setBackgroundOpacity(self.widget, 0.7)
 
 
 class Session(object):
@@ -69,6 +84,15 @@ class Session(object):
     Represent a racing sessions.
     '''
     def __init__(self):
+        self._reset()
+
+    def _is_race(self):
+        '''
+        Return true if the current session is a race
+        '''
+        return info.graphics.session == 2  # Only run in race mode
+
+    def _reset(self):
         self.ui = None
         self.current_lap = 0
         self.laps = 0
@@ -79,6 +103,7 @@ class Session(object):
         self.laps_since_pit = 0
         self.laps_left = 0
         self.litres = -1
+        self.activated = None
 
     def _set_distance(self):
         current_lap = info.graphics.completedLaps + 1  # 0 indexed
@@ -87,6 +112,9 @@ class Session(object):
         if current_lap > self.current_lap:
             self.laps_since_pit += 1
             # TODO: handle teleportation
+        elif current_lap < self.current_lap:
+            # Must be a session reset or next session starting
+            self._reset()
 
         self.current_lap = current_lap
 
@@ -96,12 +124,13 @@ class Session(object):
         '''
         fuel = info.physics.fuel
 
-        if self.initial_fuel == -1 and not info.physics.pitLimiterOn:
+        if self.initial_fuel == -1:
 			# Beginning of the session, check the initial fuel after
 			# exiting the pit or on the grid
             self.initial_fuel = fuel
-        elif fuel > self.fuel:
-            # Car was refuelled
+        elif abs(self.fuel - fuel) > 0.5:
+            # Car was refuelled (only case were fuel would change
+            # by 0.5l within two updates
             self.initial_fuel = fuel
             self.laps_since_pit = 0
         else:
@@ -117,28 +146,32 @@ class Session(object):
             litres = (self.laps - self.current_lap) * self.consumption
 
             self.litres = math.ceil(litres) + LITRES_MARGIN
-            # ac.console('* Conso:%.2f fuel:%.2f dist:%.1f litres:%d' % (self.consumption, self.fuel, distance, self.litres))
-            # ac.console('* Init fuel: %.1f laps: %d, pos: %.1f' % (self.initial_fuel, self.laps_since_pit, self.spline_pos))
+            ac.console('* Conso:%.2f fuel:%.2f dist:%.1f litres:%d' % (self.consumption, self.fuel, distance, self.litres))
+            ac.console('* Init fuel: %.1f laps: %d, pos: %.1f, left: %.1f' % (self.initial_fuel, self.laps_since_pit, self.spline_pos, self.laps_left))
 
         self.fuel = fuel
 
-    def render(self):
-        label = self.ui.labels['message1']
-        ac.setFontColor(label, *WHITE)
-        ac.setText(label, 'Left: %.1f, Conso: %.1f, Current lap: %d' % (self.laps_left, self.consumption, self.current_lap))
+#        if self.activated and datetime.now() - self.activated < timedelta(seconds=5):
+#            self.ui.set_title('Box box')
 
-        label = self.ui.labels['message2']
-        if self.laps_left < N_LAPS_DISPLAY and self.laps_since_pit > 1:
-            ac.setFontColor(label, *RED)
-            ac.setText(label, 'Box Box Box! %dl to finish race' % self.litres)
+    def update_ui(self):
+        label = self.ui.labels['message1']
+        if self._is_race() and self.laps_left < N_LAPS_DISPLAY and \
+                self.laps_since_pit > 1:
+            self.ui.set_bg_color(RED)
+            self.ui.show_bg()
+            ac.setFontColor(label, *WHITE)
+            ac.setText(label, 'Box Box Box! Add %d l to finish the race' % self.litres)
         else:
             ac.setText(label, '')
+            self.ui.hide_bg()
 
     def update_data(self):
-        self.laps = info.graphics.numberOfLaps
+        if self._is_race():
+            self.laps = info.graphics.numberOfLaps
 
-        self._set_distance()
-        self._set_fuel()
+            self._set_distance()
+            self._set_fuel()
 
 
 def acMain(ac_version):
@@ -159,18 +192,13 @@ def acUpdate(deltaT):
 
     try:
         session.update_data()
+        session.update_ui()
     except:  # pylint: disable=W0702
         exc_type, exc_value, exc_traceback = sys.exc_info()
         ac.console('ACTracker Error (logged to file)')
         ac.log(repr(traceback.format_exception(exc_type, exc_value, exc_traceback)))
 
 
-def form_render_callback(deltaT):
-    global session  # pylint: disable=W0602
-
-    try:
-        session.render()
-    except:  # pylint: disable=W0702
-        exc_type, exc_value, exc_traceback = sys.exc_info()
-        ac.console('ACTracker Error (logged to file)')
-        ac.log(repr(traceback.format_exception(exc_type, exc_value, exc_traceback)))
+# def app_activated_callback():
+    # global session  # pylint: disable=W0602
+    # session.activated = datetime.now()
