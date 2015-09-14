@@ -26,11 +26,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'DLLs'))
 from sim_info import info
 
 N_LAPS_DISPLAY = 1.5
-LITRES_MARGIN = 2
+FUEL_MARGIN = 2
 
 APP_SIZE_X = 300
 APP_SIZE_Y = 70
 
+GREEN = (0, 1, 0, 1)
 RED = (1, 0, 0, 1)
 WHITE = (1, 1, 1, 1)
 
@@ -50,7 +51,7 @@ class UI(object):
         self._create_labels()
 
     def _create_widget(self):
-        self.widget = ac.newApp('')
+        self.widget = ac.newApp('Box box')
         ac.setSize(self.widget, APP_SIZE_X, APP_SIZE_Y)
         # ac.addOnAppActivatedListener(self.widget, app_activated_callback)
         ac.setIconPosition(self.widget, -10000, -10000)
@@ -102,7 +103,7 @@ class Session(object):
         self.spline_pos = 0
         self.laps_since_pit = 0
         self.laps_left = 0
-        self.litres = -1
+        self.fuel_needed = -1
         self.activated = None
 
     def _set_distance(self):
@@ -143,10 +144,12 @@ class Session(object):
 
             # Calculate the amount of fuel needed from end of lap till
             # end of the race
-            litres = (self.laps - self.current_lap) * self.consumption
+            fuel_needed = (self.laps - self.current_lap) * self.consumption
 
-            self.litres = math.ceil(litres) + LITRES_MARGIN
-            ac.console('* Conso:%.2f fuel:%.2f dist:%.1f litres:%d' % (self.consumption, self.fuel, distance, self.litres))
+            if not info.graphics.isInPit:
+                # Only update the amount of fueld needed if not in the pits
+                self.fuel_needed = math.ceil(fuel_needed) + FUEL_MARGIN
+            ac.console('* Conso:%.2f fuel:%.2f dist:%.1f fuel_needed:%d' % (self.consumption, self.fuel, distance, self.fuel_needed))
             ac.console('* Init fuel: %.1f laps: %d, pos: %.1f, left: %.1f' % (self.initial_fuel, self.laps_since_pit, self.spline_pos, self.laps_left))
 
         self.fuel = fuel
@@ -156,12 +159,36 @@ class Session(object):
 
     def update_ui(self):
         label = self.ui.labels['message1']
-        if self._is_race() and self.laps_left < N_LAPS_DISPLAY and \
-                self.laps_since_pit > 1:
+
+        if not self._is_race():
+            ac.setText(label, '')
+            self.ui.hide_bg()
+            return
+
+        if self.laps_left < N_LAPS_DISPLAY:
+            # Car has less thatn N_LAPS_DISPLAY of fuel left in tank, indicate
+            # that the players has to pit ASAP
             self.ui.set_bg_color(RED)
             self.ui.show_bg()
             ac.setFontColor(label, *WHITE)
-            ac.setText(label, 'Box Box Box! Add %d l to finish the race' % self.litres)
+            ac.setText(label, 'Box Box Box! Needs %d l to finish the race' %
+                       self.fuel_needed)
+        elif info.graphics.isInPit and self.fuel < self.fuel_needed:
+            # Player is in the pits before necessary and needs to refuel to
+            # finish the race without pitting again
+            self.ui.set_bg_color(RED)
+            self.ui.show_bg()
+            ac.setFontColor(label, *WHITE)
+            ac.setText(label, 'Early pit! Needs %d l to finish the race' %
+                       self.fuel_needed)
+        elif info.graphics.isInPit and self.fuel >= self.fuel_needed:
+            # Player is in the pits before necessary and has enough fuel to
+            # finish the race without refueling
+            self.ui.set_bg_color(GREEN)
+            self.ui.show_bg()
+            ac.setFontColor(label, *WHITE)
+            ac.setText(label, 'Enough fuel to finish the race: %d l' %
+                       self.fuel)
         else:
             ac.setText(label, '')
             self.ui.hide_bg()
