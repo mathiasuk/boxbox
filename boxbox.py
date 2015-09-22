@@ -85,6 +85,7 @@ class Session(object):
     Represent a racing sessions.
     '''
     def __init__(self):
+        self.ui = None
         self._reset()
 
     def _is_race(self):
@@ -94,7 +95,6 @@ class Session(object):
         return info.graphics.session == 2  # Only run in race mode
 
     def _reset(self):
-        self.ui = None
         self.current_lap = 0
         self.laps = 0
         self.initial_fuel = -1
