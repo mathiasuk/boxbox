@@ -165,9 +165,11 @@ class Session(object):
             self.ui.hide_bg()
             return
 
-        if self.laps_left < N_LAPS_DISPLAY:
+        if self.laps_left < N_LAPS_DISPLAY and self.laps > 1:
             # Car has less thatn N_LAPS_DISPLAY of fuel left in tank, indicate
             # that the players has to pit ASAP
+            # We only display this from lap 2 as the average consumption is not
+            # accurate before
             self.ui.set_bg_color(RED)
             self.ui.show_bg()
             ac.setFontColor(label, *WHITE)
