@@ -22,8 +22,8 @@ import traceback
 import ac
 # import acsys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'DLLs'))
-from sim_info import info
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'boxboxDLL'))
+from boxboxDLL.sim_info import info
 
 N_LAPS_DISPLAY = 1.5
 FUEL_MARGIN = 2
