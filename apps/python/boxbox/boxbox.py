@@ -25,7 +25,7 @@ import ac
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'boxboxDLL'))
 from boxboxDLL.sim_info import info
 
-N_LAPS_DISPLAY = 1.5
+N_LAPS_DISPLAY = 1.2
 FUEL_MARGIN = 2
 
 APP_SIZE_X = 300
@@ -51,7 +51,7 @@ class UI(object):
         self._create_labels()
 
     def _create_widget(self):
-        self.widget = ac.newApp('Box box')
+        self.widget = ac.newApp('boxbox')
         ac.setSize(self.widget, APP_SIZE_X, APP_SIZE_Y)
         # ac.addOnAppActivatedListener(self.widget, app_activated_callback)
         ac.setIconPosition(self.widget, -10000, -10000)
@@ -150,7 +150,7 @@ class Session(object):
                 # Only update the amount of fueld needed if not in the pits
                 self.fuel_needed = math.ceil(fuel_needed) + FUEL_MARGIN
             ac.console('* Conso:%.2f fuel:%.2f dist:%.1f fuel_needed:%d' % (self.consumption, self.fuel, distance, self.fuel_needed))
-            ac.console('* Init fuel: %.1f laps: %d, pos: %.1f, left: %.1f' % (self.initial_fuel, self.laps_since_pit, self.spline_pos, self.laps_left))
+            ac.console('* Init fuel: %.1f laps-since: %d, lap: %d/%d, pos: %.1f, left: %.1f' % (self.initial_fuel, self.laps_since_pit, self.current_lap, self.laps, self.spline_pos, self.laps_left))
 
         self.fuel = fuel
 
@@ -165,7 +165,8 @@ class Session(object):
             self.ui.hide_bg()
             return
 
-        if self.laps_left < N_LAPS_DISPLAY and self.laps > 1:
+        if self.laps_left < N_LAPS_DISPLAY and self.current_lap > 1 and \
+                self.current_lap < self.laps:
             # Car has less thatn N_LAPS_DISPLAY of fuel left in tank, indicate
             # that the players has to pit ASAP
             # We only display this from lap 2 as the average consumption is not
