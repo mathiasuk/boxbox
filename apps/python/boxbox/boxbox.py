@@ -149,8 +149,8 @@ class Session(object):
             if not info.graphics.isInPit:
                 # Only update the amount of fueld needed if not in the pits
                 self.fuel_needed = math.ceil(fuel_needed) + FUEL_MARGIN
-            ac.console('* Conso:%.2f fuel:%.2f dist:%.1f fuel_needed:%d' % (self.consumption, self.fuel, distance, self.fuel_needed))
-            ac.console('* Init fuel: %.1f laps-since: %d, lap: %d/%d, pos: %.1f, left: %.1f' % (self.initial_fuel, self.laps_since_pit, self.current_lap, self.laps, self.spline_pos, self.laps_left))
+            # ac.console('* Conso:%.2f fuel:%.2f dist:%.1f fuel_needed:%d' % (self.consumption, self.fuel, distance, self.fuel_needed))
+            # ac.console('* Init fuel: %.1f laps-since: %d, lap: %d/%d, pos: %.1f, left: %.1f' % (self.initial_fuel, self.laps_since_pit, self.current_lap, self.laps, self.spline_pos, self.laps_left))
 
         self.fuel = fuel
 
