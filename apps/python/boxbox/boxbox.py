@@ -25,8 +25,8 @@ import ac
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'boxboxDLL'))
 from boxboxDLL.sim_info import info
 
-N_LAPS_DISPLAY = 1.2
-FUEL_MARGIN = 2
+N_LAPS_DISPLAY = 1.4
+FUEL_MARGIN = 4
 
 APP_SIZE_X = 300
 APP_SIZE_Y = 70
