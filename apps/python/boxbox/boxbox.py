@@ -14,15 +14,18 @@
 
 import math
 import os
+import platform
 import sys
 import traceback
 
 # from datetime import datetime, timedelta
 
 import ac
-# import acsys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'boxboxDLL'))
+sys.path.insert(
+    0, os.path.join(os.path.dirname(__file__),
+                    'boxboxDLL/%s' % platform.architecture()[0])
+)
 from boxboxDLL.sim_info import info
 
 N_LAPS_DISPLAY = 1.4
@@ -102,6 +105,7 @@ class Session(object):
         self.consumption = 0  # in litres per lap
         self.spline_pos = 0
         self.laps_since_pit = 0
+        self.current_lap_time = 0
         self.laps_left = 0
         self.fuel_needed = -1
         self.activated = None
@@ -109,6 +113,7 @@ class Session(object):
     def _set_distance(self):
         current_lap = info.graphics.completedLaps + 1  # 0 indexed
         self.spline_pos = info.graphics.normalizedCarPosition
+        self.current_lap_time = info.graphics.currentTime
 
         if current_lap > self.current_lap:
             self.laps_since_pit += 1
@@ -165,12 +170,14 @@ class Session(object):
             self.ui.hide_bg()
             return
 
-        if self.laps_left < N_LAPS_DISPLAY and self.current_lap > 1 and \
-                self.current_lap < self.laps:
+        if self.laps_left < N_LAPS_DISPLAY and \
+                not (self.current_lap == 1 and self.current_lap_time < 30 * 1000) and \
+                self.lap_left >= self.laps - self.current_lap + 1 - self.spline_pos:
             # Car has less thatn N_LAPS_DISPLAY of fuel left in tank, indicate
             # that the players has to pit ASAP
-            # We only display this from lap 2 as the average consumption is not
-            # accurate before
+            # We do not display in the first 30 seconds of lap 1 while we
+            # calculate the initial fuel consumption
+            # We also do not display if we have enough fuel to finish the race
             self.ui.set_bg_color(RED)
             self.ui.show_bg()
             ac.setFontColor(label, *WHITE)
