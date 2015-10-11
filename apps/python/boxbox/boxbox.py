@@ -12,7 +12,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # Copyright (C) 2014 - Mathias Andre
 
-import math
 import os
 import platform
 import sys
@@ -28,8 +27,8 @@ sys.path.insert(
 )
 from boxboxDLL.sim_info import info
 
-N_LAPS_DISPLAY = 1.4
-FUEL_MARGIN = 4
+N_LAPS_DISPLAY = 1.3
+FUEL_MARGIN = 3
 
 APP_SIZE_X = 300
 APP_SIZE_Y = 70
@@ -113,7 +112,7 @@ class Session(object):
     def _set_distance(self):
         current_lap = info.graphics.completedLaps + 1  # 0 indexed
         self.spline_pos = info.graphics.normalizedCarPosition
-        self.current_lap_time = info.graphics.currentTime
+        self.current_lap_time = info.graphics.iCurrentTime
 
         if current_lap > self.current_lap:
             self.laps_since_pit += 1
@@ -153,9 +152,13 @@ class Session(object):
 
             if not info.graphics.isInPit:
                 # Only update the amount of fueld needed if not in the pits
-                self.fuel_needed = math.ceil(fuel_needed) + FUEL_MARGIN
+                ceiling = int(fuel_needed)
+                ceiling = ceiling + 1 if ceiling < fuel_needed else ceiling
+                self.fuel_needed = ceiling + FUEL_MARGIN
             # ac.console('* Conso:%.2f fuel:%.2f dist:%.1f fuel_needed:%d' % (self.consumption, self.fuel, distance, self.fuel_needed))
             # ac.console('* Init fuel: %.1f laps-since: %d, lap: %d/%d, pos: %.1f, left: %.1f' % (self.initial_fuel, self.laps_since_pit, self.current_lap, self.laps, self.spline_pos, self.laps_left))
+
+        self.fuel = fuel
 
         self.fuel = fuel
 
@@ -172,7 +175,7 @@ class Session(object):
 
         if self.laps_left < N_LAPS_DISPLAY and \
                 not (self.current_lap == 1 and self.current_lap_time < 30 * 1000) and \
-                self.lap_left >= self.laps - self.current_lap + 1 - self.spline_pos:
+                self.laps_left < self.laps - (self.current_lap + self.spline_pos):
             # Car has less thatn N_LAPS_DISPLAY of fuel left in tank, indicate
             # that the players has to pit ASAP
             # We do not display in the first 30 seconds of lap 1 while we
@@ -232,7 +235,7 @@ def acUpdate(deltaT):
         session.update_ui()
     except:  # pylint: disable=W0702
         exc_type, exc_value, exc_traceback = sys.exc_info()
-        ac.console('ACTracker Error (logged to file)')
+        ac.console('boxbox Error (logged to file)')
         ac.log(repr(traceback.format_exception(exc_type, exc_value, exc_traceback)))
 
 
