@@ -12,19 +12,16 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # Copyright (C) 2014 - Mathias Andre
 
-import os
 import platform
 import sys
 import traceback
 
-# from datetime import datetime, timedelta
-
 import ac
 
 sys.path.insert(
-    0, os.path.join(os.path.dirname(__file__),
-                    'boxboxDLL/%s' % platform.architecture()[0])
+    0, 'apps/python/boxbox/boxboxDLL/%s/' % platform.architecture()[0]
 )
+
 from boxboxDLL.sim_info import info
 
 N_LAPS_DISPLAY = 1.3
