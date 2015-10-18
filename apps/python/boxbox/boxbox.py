@@ -147,7 +147,7 @@ class Session(object):
             # end of the race
             fuel_needed = (self.laps - self.current_lap) * self.consumption
 
-            if not info.graphics.isInPit:
+            if not info.physics.pitLimiterOn or not info.graphics.isInPit:
                 # Only update the amount of fueld needed if not in the pits
                 ceiling = int(fuel_needed)
                 ceiling = ceiling + 1 if ceiling < fuel_needed else ceiling
