@@ -170,6 +170,9 @@ class Session(object):
             self.ui.hide_bg()
             return
 
+        # Show fuel left in title
+        self.ui.set_title('boxbox (%.1fl)' % info.physics.fuel)
+
         if self.laps_left < N_LAPS_DISPLAY and \
                 not (self.current_lap == 1 and self.current_lap_time < 30 * 1000) and \
                 self.laps_left < self.laps - (self.current_lap + self.spline_pos):
