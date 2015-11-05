@@ -1,2 +1,8 @@
 0.1
 	Initial release
+
+0.2
+	Click on widget to toggle display mode:
+	 - Show title and fuel left
+	   or
+	 - Hide widget and title until necessary (widget appears for the first 10s)

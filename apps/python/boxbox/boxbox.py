@@ -12,9 +12,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # Copyright (C) 2014 - Mathias Andre
 
+import json
+import os
 import platform
 import sys
 import traceback
+from datetime import datetime
 
 import ac
 
@@ -29,6 +32,9 @@ FUEL_MARGIN = 3
 
 APP_SIZE_X = 300
 APP_SIZE_Y = 70
+PREFS_PATH = 'apps/python/boxbox/prefs.json'
+DISPLAY = True
+TITLE_TIMEOUT = 10  # Time in seconds during which we show the title
 
 GREEN = (0, 1, 0, 1)
 RED = (1, 0, 0, 1)
@@ -45,9 +51,12 @@ class UI(object):
         self.session = session_
         self.widget = None
         self.labels = {}
+        self.display_button = None
+        self.display_title_start = None
 
         self._create_widget()
         self._create_labels()
+        self.activated()
 
     def _create_widget(self):
         self.widget = ac.newApp('boxbox')
@@ -57,6 +66,16 @@ class UI(object):
         ac.drawBorder(self.widget, 0)
         self.hide_bg()
 
+        # Create display button
+        self.display_button = ac.addButton(self.widget, '')
+        ac.setPosition(self.display_button, 0, 30)
+        ac.setSize(self.display_button, 300, 60)
+        ac.setBackgroundOpacity(self.display_button, 0)
+        ac.drawBorder(self.display_button, 0)
+        ac.addOnClickedListener(self.display_button, callback_display_button)
+
+        ac.addOnAppActivatedListener(self.widget, activated_callback)
+
     def _create_label(self, name, text, x, y):
         label = ac.addLabel(self.widget, name)
         ac.setText(label, text)
@@ -65,6 +84,18 @@ class UI(object):
 
     def _create_labels(self):
         self._create_label('message1', '', 10, 30)
+
+    def activated(self):
+        '''
+        Called at start or when the app is (re)activated
+        '''
+        self.display_title_start = datetime.now()
+
+    def display_button_click(self):
+        self.session.display = not self.session.display
+
+        # Save preferences
+        self.session.save_prefs()
 
     def hide_bg(self):
         ac.setBackgroundOpacity(self.widget, 0)
@@ -85,13 +116,31 @@ class Session(object):
     '''
     def __init__(self):
         self.ui = None
+        self.display = DISPLAY
         self._reset()
+
+        self._load_prefs()
 
     def _is_race(self):
         '''
         Return true if the current session is a race
         '''
         return info.graphics.session == 2  # Only run in race mode
+
+    def _load_prefs(self):
+        if not os.path.exists(PREFS_PATH):
+            return
+
+        try:
+            f = open(PREFS_PATH)
+        except Exception as e:
+            ac.console('Pitboard: Error opining "%s": %s' % (PREFS_PATH, e))
+            return
+
+        data = f.readline()
+        data = json.loads(data)
+        if 'display' in data:
+            self.display = data['display']
 
     def _reset(self):
         self.current_lap = 0
@@ -165,8 +214,14 @@ class Session(object):
     def update_ui(self):
         label = self.ui.labels['message1']
 
-        # Show fuel left in title
-        self.ui.set_title('boxbox (%.1fl)' % info.physics.fuel)
+        display_time = (datetime.now() -
+                        self.ui.display_title_start).total_seconds()
+
+        if self.display or display_time < TITLE_TIMEOUT:
+            # Show fuel left in title
+            self.ui.set_title('boxbox (%.1fl)' % info.physics.fuel)
+        else:
+            self.ui.set_title('')
 
         if not self._is_race():
             ac.setText(label, '')
@@ -213,6 +268,21 @@ class Session(object):
             self._set_distance()
             self._set_fuel()
 
+    def save_prefs(self):
+        '''
+        Save preferences to JSON file
+        '''
+        try:
+            f = open(PREFS_PATH, 'w')
+        except Exception as e:
+            ac.console('Can\'t open file "%s" for writing: %s' %
+                       (PREFS_PATH, e))
+            return
+
+        f.write(json.dumps({'display': self.display}))
+        f.close()
+        ac.console('Wrote prefs to file')
+
 
 def acMain(ac_version):
     global session  # pylint: disable=W0603
@@ -239,6 +309,12 @@ def acUpdate(deltaT):
         ac.log(repr(traceback.format_exception(exc_type, exc_value, exc_traceback)))
 
 
-# def app_activated_callback():
-    # global session  # pylint: disable=W0602
-    # session.activated = datetime.now()
+def callback_display_button(x, y):
+    global session  # pylint: disable=W0602
+
+    session.ui.display_button_click()
+
+
+def activated_callback(value):
+    global session  # pylint: disable=W0602
+    session.ui.activated()
