@@ -6,3 +6,4 @@
 	 - Show title and fuel left
 	   or
 	 - Hide widget and title until necessary (widget appears for the first 10s)
+	Fix 32bit mode (pyd file was the 64bit one)
