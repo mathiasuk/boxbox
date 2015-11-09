@@ -181,7 +181,7 @@ class Session(object):
             self.initial_fuel = fuel
         elif abs(self.fuel - fuel) > 0.5:
             # Car was refuelled (only case were fuel would change
-            # by 0.5l within two updates
+            # by 0.5l within two updates)
             self.initial_fuel = fuel
             self.laps_since_pit = 0
         else:
@@ -196,8 +196,8 @@ class Session(object):
             # end of the race
             fuel_needed = (self.laps - self.current_lap) * self.consumption
 
-            if not info.physics.pitLimiterOn or not info.graphics.isInPit:
-                # Only update the amount of fueld needed if not in the pits
+            if not (info.physics.pitLimiterOn or info.graphics.isInPit):
+                # Only update the amount of fuel needed if not in the pits
                 ceiling = int(fuel_needed)
                 ceiling = ceiling + 1 if ceiling < fuel_needed else ceiling
                 self.fuel_needed = ceiling + FUEL_MARGIN
@@ -205,11 +205,6 @@ class Session(object):
             # ac.console('* Init fuel: %.1f laps-since: %d, lap: %d/%d, pos: %.1f, left: %.1f' % (self.initial_fuel, self.laps_since_pit, self.current_lap, self.laps, self.spline_pos, self.laps_left))
 
         self.fuel = fuel
-
-        self.fuel = fuel
-
-#        if self.activated and datetime.now() - self.activated < timedelta(seconds=5):
-#            self.ui.set_title('Box box')
 
     def update_ui(self):
         label = self.ui.labels['message1']
