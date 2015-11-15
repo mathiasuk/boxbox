@@ -149,6 +149,7 @@ class Session(object):
         self.fuel = 0
         self.consumption = 0  # in litres per lap
         self.spline_pos = 0
+        self.in_pits = False
         self.laps_since_pit = 0
         self.current_lap_time = 0
         self.laps_left = 0
@@ -196,7 +197,7 @@ class Session(object):
             # end of the race
             fuel_needed = (self.laps - self.current_lap) * self.consumption
 
-            if not (info.physics.pitLimiterOn or info.graphics.isInPit):
+            if not self.in_pits:
                 # Only update the amount of fuel needed if not in the pits
                 ceiling = int(fuel_needed)
                 ceiling = ceiling + 1 if ceiling < fuel_needed else ceiling
@@ -205,6 +206,15 @@ class Session(object):
             # ac.console('* Init fuel: %.1f laps-since: %d, lap: %d/%d, pos: %.1f, left: %.1f' % (self.initial_fuel, self.laps_since_pit, self.current_lap, self.laps, self.spline_pos, self.laps_left))
 
         self.fuel = fuel
+
+    def _set_pit(self):
+        '''
+        Check if we are in the pits
+        '''
+        if info.physics.pitLimiterOn or info.graphics.isInPit:
+            self.in_pits = True
+        elif info.physics.speedKmh > 81:
+            self.in_pits = False
 
     def update_ui(self):
         label = self.ui.labels['message1']
@@ -236,7 +246,7 @@ class Session(object):
             ac.setFontColor(label, *WHITE)
             ac.setText(label, 'Box Box Box! Needs %d l to finish the race' %
                        self.fuel_needed)
-        elif info.graphics.isInPit and self.fuel < self.fuel_needed:
+        elif self.in_pits and self.fuel < self.fuel_needed:
             # Player is in the pits before necessary and needs to refuel to
             # finish the race without pitting again
             self.ui.set_bg_color(RED)
@@ -244,7 +254,7 @@ class Session(object):
             ac.setFontColor(label, *WHITE)
             ac.setText(label, 'Early pit! Needs %d l to finish the race' %
                        self.fuel_needed)
-        elif info.graphics.isInPit and self.fuel >= self.fuel_needed:
+        elif self.in_pits and self.fuel >= self.fuel_needed:
             # Player is in the pits before necessary and has enough fuel to
             # finish the race without refueling
             self.ui.set_bg_color(GREEN)
@@ -260,6 +270,7 @@ class Session(object):
         if self._is_race():
             self.laps = info.graphics.numberOfLaps
 
+            self._set_pit()
             self._set_distance()
             self._set_fuel()
 
