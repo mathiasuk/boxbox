@@ -7,3 +7,6 @@
 	   or
 	 - Hide widget and title until necessary (widget appears for the first 10s)
 	Fix 32bit mode (pyd file was the 64bit one)
+
+0.3
+	Fix fuel amount changing if pit box is after start/finish line
